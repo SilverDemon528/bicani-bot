@@ -1,13 +1,13 @@
 // import discord.js
 import {Client, Events, GatewayIntentBits} from 'discord.js';
+import ExtendedClient from './src/class/ExtendedClient';
+
+import {default as commands} from "./src/commands"
 
 // create a new Client instance
-const client = new Client({intents: [GatewayIntentBits.Guilds]});
 
-// listen for the client to be ready
-client.once(Events.ClientReady, (c) => {
-  console.log(`Ready! Logged in as ${c.user.tag}`);
-});
+const client = new ExtendedClient()
 
-// login with the token from .env.local
-client.login(process.env.DISCORD_TOKEN);
+client.loadModules()
+client.deploy()
+client.start()
