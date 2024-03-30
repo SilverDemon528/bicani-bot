@@ -1,8 +1,10 @@
-import { Client, Collection, Events, GatewayIntentBits, REST, Routes } from "discord.js";
+import { Client, Events, GatewayIntentBits, REST, Routes } from "discord.js";
 import { Command, Event } from "../types";
 import { default as commandArray } from '../commands'
 import { default as eventArray } from '../events'
 import { AudioPlayer, createAudioPlayer } from "@discordjs/voice";
+import Database from "bun:sqlite";
+import { loadDatabase } from "../utils/database_utils";
 
 
 
@@ -24,10 +26,11 @@ async function deployProduction(rest: REST, body: any) {
 export default class extends Client {
     public commands: Map<string, Command> = new Map()
     public audioPlayer: AudioPlayer = createAudioPlayer();
+    public db: Database = loadDatabase()
 
-    constructor() {
+    constructor(intents?: GatewayIntentBits[]) {
         super({
-            intents: [
+            intents: intents ?? [
                 GatewayIntentBits.Guilds,
                 GatewayIntentBits.GuildMessages,
                 GatewayIntentBits.GuildMessageReactions,
@@ -56,27 +59,29 @@ export default class extends Client {
         });
     }
 
-    public attachListener(event: Event | Event[]) {
-        if (event instanceof Array) {
-            event.forEach(e => {
-                if (e.once) {
-                    this.once(e.name, (...args) => e.execute(...args))
-                } else {
-                    this.on(e.name, (...args) => e.execute(...args))
-                }
-            })
+    public attachListener(event: Event) {
+        if (event.once) {
+            this.once(event.name, (...args) => event.execute(...args))
         } else {
-            if (event.once) {
-                this.once(event.name, (...args) => event.execute(...args))
-            } else {
-                this.on(event.name, (...args) => event.execute(...args))
-            }
+            this.on(event.name, (...args) => event.execute(...args))
         }
     }
 
+    public attachListeners(events: Event[]) {
+        events.forEach(e => this.attachListener(e));
+    }
+
+    public registerCommand(command: Command) {
+        this.commands.set(command.data.name, command);
+    }
+
+    public registerCommands(commands: Command[]) {
+        commands.forEach(c => this.registerCommand(c));
+    }
+
     public loadModules() {
-        for (const command of commandArray) this.commands.set(command.data.name, command);
-        for (const event of eventArray) this.attachListener(event)
+        this.registerCommands(commandArray)
+        this.attachListeners(eventArray)
     }
 
     public async deploy() {
